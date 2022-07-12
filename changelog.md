@@ -1,4 +1,7 @@
 ## Changelog for lstm_pump
 
+### v0.0.2 - 12/07/2022
+Method clean_series_to_supervised explained and bug fixed coming from refactoring to OOP
+
 ### v0.0.1 - 11/07/2022
 Initial commit

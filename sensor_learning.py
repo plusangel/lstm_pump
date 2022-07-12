@@ -1,5 +1,6 @@
 from sensor_analysis import read_data, manipulate_y, manipulate_x
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 
 
@@ -23,6 +24,25 @@ def scaling(data):
     scaler = MinMaxScaler().fit(data)
     scaled_features = scaler.transform(data)
     return scaled_features
+
+class DataPreparation:
+    def __init__(self, data_x, data_y):
+        self.data_x = data_x
+        self.data_y = data_y
+        self.encoded_y = []
+        self.one_hot = []
+
+    def manipulate_y(self):
+        '''
+        Convert the classes from strings to values by using the sckit-learn mapper
+        '''
+        le = LabelEncoder()
+        le.fit(self.data_y)
+        self.data_y = le.transform(self.data_y)
+        self.data_y = pd.DataFrame(self.data_y, columns=['target'])
+
+        le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
+        print(le_name_mapping)
 
 
 class TimeSeries:
@@ -48,19 +68,24 @@ class TimeSeries:
 
         agg = pd.concat(cols, axis=1)
         agg.columns = names
+        agg.iloc[0, 0:54] = agg.iloc[1, 0:54]
         if drop_nan:
-            agg.dropna(inplace=True)
+            agg.dropna(inplace=True, axis=0)
 
         self.data = self.clean_series_to_supervised(agg)
         return self.data
 
     def clean_series_to_supervised(self, shifted_data):
-        to_remove_list = ['sensor' + str(n) + '(t)' for n in range(1, len(values.columns) + 1)]
-        data_y = data_window.iloc[:, -1]
-        data_x = data_window.drop(to_remove_list, axis=1)
+        to_remove_list = ['sensor' + str(n) + '(t)' for n in range(1, len(self.data.columns) + 1)]
+        # keep only the last column which is the target
+        data_y = shifted_data.iloc[:, -1]
+        # remove all the sensor values at t including the target at t
+        data_x = shifted_data.drop(to_remove_list, axis=1)
+        # drop the last column which is the target but named as sensor46
         data_x.drop(data_x.columns[len(data_x.columns) - 1], axis=1, inplace=True)
         data = pd.concat([data_x, data_y], axis=1)
-        data.columns = [*data.columns[-1], 'machine_status']
+        # asterisk means unpacking the list of data.columns except the last item which will be renamed to 'machine_status'
+        data.columns = [*data.columns[:-1], 'machine_status']
         return data
 
 
@@ -69,28 +94,19 @@ if __name__ == '__main__':
     data, sensor_names = read_data("pump_sensor.csv", 1)
 
     # preprocess data
-    values = manipulate_x(data, print_plot=False)
+    data = manipulate_x(data, print_plot=False)
     # remove timestamps column
     sensor_names = data.keys()[2:-1]
     # create a dataframe with sensors and target only!
     data = data[sensor_names.insert(len(sensor_names), 'machine_status')]
 
     # create windowed data
-
-
-    # map targets to values
-    encoded_y = manipulate_y(data)
-    values = pd.concat([data[sensor_names], encoded_y], axis=1)
-
-    # preprocess data
-
-
-    # create windowed data
-    future = 1
-    data_window = series_to_supervised(values, n_in=future, n_out=1)
-
-    # create train/test/val sets
-    train_x, train_y, val_x, val_y, test_x, test_y = splitting_and_shape(data_x, data_y)
-
-    scaled_train_x = scaling(train_x[1, :])
+    FUTURE = 1
+    time_series = TimeSeries(data, FUTURE).series_to_supervised()
+    sensor_names_shift = time_series.keys()[:-1]
     pass
+
+    # prepare dataset
+
+
+

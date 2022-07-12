@@ -9,5 +9,7 @@ It includes the various steps we need to perform until we apply the model, such 
 - create timeseries data and
 - normalise/standardize
 
+The dataset can be downloaded from [here](https://ga-data-cases.s3.eu-central-1.amazonaws.com/pump_sensor.zip).
+
 ### Credits
 - [Jen Werth](https://janwerth.medium.com/)
