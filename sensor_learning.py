@@ -1,31 +1,10 @@
-from sensor_analysis import read_data, manipulate_y, manipulate_x
+from sensor_analysis import read_data, manipulate_x
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 
 
-def splitting_and_shape(data_x, data_y):
-    train_x = data_x[0:120000].values
-    train_y = data_y[0:120000].values
-
-    val_x = data_x[140000:].values
-    val_y = data_y[140000:].values
-
-    test_x = data_x[120000:140000].values
-    test_y = data_y[120000:140000].values
-
-    # train_x.astype('float32')
-    # val_x.astype('float32')
-    # test_x.astype('float32')
-    return train_x, train_y, val_x, val_y, test_x, test_y
-
-
-def scaling(data):
-    scaler = MinMaxScaler().fit(data)
-    scaled_features = scaler.transform(data)
-    return scaled_features
-
-class DataPreparation:
+class DataAssistant:
     def __init__(self, data_x, data_y):
         self.data_x = data_x
         self.data_y = data_y
@@ -44,8 +23,16 @@ class DataPreparation:
         le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
         print(le_name_mapping)
 
+    def make_float(self):
+        self.data_x.astype('float32')
 
-class TimeSeries:
+    def split(self, start, end):
+        split_x = self.data_x[start:end].values
+        split_y = self.data_y[start:end].values
+        return split_x, split_y
+
+
+class TimeseriesAssistant:
     def __init__(self, data, n_in=1, n_out=1):
         self.data = data
         self.n_in = n_in
@@ -102,11 +89,25 @@ if __name__ == '__main__':
 
     # create windowed data
     FUTURE = 1
-    time_series = TimeSeries(data, FUTURE).series_to_supervised()
+    time_series = TimeseriesAssistant(data, FUTURE).series_to_supervised()
+    # these are the sensor names including the time shift, in our case the t-1 since future is 1
     sensor_names_shift = time_series.keys()[:-1]
-    pass
 
-    # prepare dataset
+    # preprocess dataset
+    the_data = DataAssistant(time_series[sensor_names_shift], time_series['machine_status'])
+    # map target's text to indexes
+    the_data.manipulate_y()
+    the_data.make_float()
+
+    # split the data to three sets [train, val and test]
+    train_x, train_y = the_data.split(0, 120000)
+    test_x, test_y = the_data.split(120000, 140000)
+    val_x, val_y = the_data.split(140000, len(the_data.data_x))
+
+    # let's create three objects, one for each set
+    training_data = DataAssistant(train_x, train_y)
+    validation_data = DataAssistant(val_x, val_y)
+    testing_data = DataAssistant(test_x, test_y)
 
 
 
