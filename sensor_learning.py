@@ -1,6 +1,13 @@
 from sensor_analysis import read_data, manipulate_x
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
+
+from tensorflow.keras.layers import LSTM
+from tensorflow.keras.layers import Dropout
+from tensorflow.keras.layers import Dense
+
+import numpy as np
 import pandas as pd
 
 
@@ -30,6 +37,21 @@ class DataAssistant:
         split_x = self.data_x[start:end].values
         split_y = self.data_y[start:end].values
         return split_x, split_y
+
+    def onehot(self):
+        one_hot = OneHotEncoder()
+        one_hot.fit(self.data_y.reshape(-1, 1))
+        self.data_y = one_hot.transform(self.data_y.reshape(-1, 1)).toarray()
+        pass
+
+    def scaling(self):
+        scaler = MinMaxScaler().fit(self.data_x)
+        self.data_x = scaler.transform(self.data_x)
+
+    def reshape_for_LSTM(self):
+        timestemps = 1
+        samples = int(np.floor(self.data_x.shape[0]/timestemps))
+        self.data_x = self.data_x.reshape((samples, timestemps, self.data_x.shape[1]))  #samples, timesteps, sensors
 
 
 class TimeseriesAssistant:
@@ -108,6 +130,20 @@ if __name__ == '__main__':
     training_data = DataAssistant(train_x, train_y)
     validation_data = DataAssistant(val_x, val_y)
     testing_data = DataAssistant(test_x, test_y)
+
+    training_data.onehot()
+    training_data.scaling()
+    training_data.reshape_for_LSTM()
+
+    validation_data.onehot()
+    validation_data.scaling()
+    validation_data.reshape_for_LSTM()
+
+    testing_data.onehot()
+    testing_data.scaling()
+    testing_data.reshape_for_LSTM()
+
+
 
 
 

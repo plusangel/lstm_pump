@@ -1,5 +1,8 @@
 ## Changelog for lstm_pump
 
+### v0.0.4 - 15/07/2022
+Preprocessing stage completed
+
 ### v0.0.3 - 12/07/2022
 Introduced Timeseries and Data Assistant classes
 
