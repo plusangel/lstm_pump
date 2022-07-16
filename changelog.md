@@ -1,5 +1,8 @@
 ## Changelog for lstm_pump
 
+### v0.0.7 - 16/07/2022
+Housekeeping in the data preparation class
+
 ### v0.0.6 - 16/07/2022
 Introduced one more class to prepare data
 

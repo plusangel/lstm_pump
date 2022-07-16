@@ -4,6 +4,8 @@ from sklearn.preprocessing import OneHotEncoder
 
 from models import model_setup_Fapi, plot_training, plot_signal_hat
 from tensorflow.keras.models import load_model
+import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
 
@@ -24,23 +26,34 @@ class DataPreparation:
     def update_sensors_names(self):
         self.sensors_names = self.data.keys()
 
-    def manipulate_x(self, print_plot=False):
+    def manipulate_x(self):
+        # Sensor_15 is completely empty
         self.data = self.data.drop(labels=['sensor_15'], axis=1)
-        self.data = self.data.drop(labels=['sensor_00'], axis=1)
 
+        # lets merge sensor_50 and sensor_51 to come up with a good one
         # data['sensor_51'][110000:140000] = data['sensor_50'][110000:140000]
         self.data.iloc[110000:140000, self.data.columns.get_loc('sensor_51')] = self.data.iloc[110000:140000,
                                                                       self.data.columns.get_loc('sensor_50')]
         self.data = self.data.drop(labels=['sensor_50'], axis=1)
 
+        self.plot_nans()
+        # the sensors between 06–09 show most NaNs
         self.data = self.data.drop(labels=['sensor_06', 'sensor_07', 'sensor_08', 'sensor_09'], axis=1)
         self.data = self.data.fillna(method='pad', limit=30)
         self.data = self.data.dropna()
 
-        # if print_plot:
-        #     print((data.isna().sum()))
-        #     plotting_stuff((data.isna().sum()[2:-1]), 'bar', 'fill_nan', saving=True)
-        # return data
+
+    def plot_nans(self, save=False):
+        print((self.data.isna().sum()))
+        self.plotting_stuff((self.data.isna().sum()[2:-1]), 'bar', 'fill_nan', saving=save)
+
+    def plotting_stuff(self, data, plot_type, title, saving=False):
+        fig = plt.figure()
+        data.plot(kind=plot_type)
+        plt.title(title)
+        if saving == True:
+            plt.savefig(title + '.png', format='png', dpi=300, transparent=True)
+        fig.show()
 
     def remove_timestamps(self):
         # remove timestamps column
@@ -148,7 +161,7 @@ if __name__ == '__main__':
     # print(experiment.get_sensors_names())
 
     # preprocess data
-    experiment.manipulate_x(print_plot=False)
+    experiment.manipulate_x()
 
     # drop timestamps
     experiment.remove_timestamps()
