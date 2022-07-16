@@ -1,4 +1,3 @@
-from sensor_analysis import read_data, manipulate_x
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
@@ -8,13 +7,47 @@ from tensorflow.keras.models import load_model
 import numpy as np
 import pandas as pd
 
+class DataPreparation:
+    def __init__(self):
+        self.sensors_names = None
+        self.data = None
 
-class DataAssistant:
-    def __init__(self, data_x, data_y):
-        self.data_x = data_x
-        self.data_y = data_y
-        self.encoded_y = []
-        self.one_hot = []
+    def read_data(self, path) -> pd.DataFrame:
+        '''
+        Reads the data from a csv file
+        The sensor data come in columns.
+        :param path: The path of the csv file
+        '''
+        self.data = pd.read_csv(path)
+        self.update_sensors_names()
+
+    def update_sensors_names(self):
+        self.sensors_names = self.data.keys()
+
+    def manipulate_x(self, print_plot=False):
+        self.data = self.data.drop(labels=['sensor_15'], axis=1)
+        self.data = self.data.drop(labels=['sensor_00'], axis=1)
+
+        # data['sensor_51'][110000:140000] = data['sensor_50'][110000:140000]
+        self.data.iloc[110000:140000, self.data.columns.get_loc('sensor_51')] = self.data.iloc[110000:140000,
+                                                                      self.data.columns.get_loc('sensor_50')]
+        self.data = self.data.drop(labels=['sensor_50'], axis=1)
+
+        self.data = self.data.drop(labels=['sensor_06', 'sensor_07', 'sensor_08', 'sensor_09'], axis=1)
+        self.data = self.data.fillna(method='pad', limit=30)
+        self.data = self.data.dropna()
+
+        # if print_plot:
+        #     print((data.isna().sum()))
+        #     plotting_stuff((data.isna().sum()[2:-1]), 'bar', 'fill_nan', saving=True)
+        # return data
+
+    def remove_timestamps(self):
+        # remove timestamps column
+        self.update_sensors_names()
+        self.sensors_names = experiment.sensors_names[1:-1]
+        # create a dataframe with sensors and target only!
+        self.data = self.data[self.sensors_names.insert(len(self.sensors_names), 'machine_status')]
 
     def manipulate_y(self):
         '''
@@ -27,6 +60,15 @@ class DataAssistant:
 
         le_name_mapping = dict(zip(le.classes_, le.transform(le.classes_)))
         print(le_name_mapping)
+
+
+class DataAssistant:
+
+    def __init__(self):
+        self.data_x = []
+        self.data_y = []
+        self.encoded_y = []
+        self.one_hot = []
 
     def make_float(self):
         self.data_x.astype('float32')
@@ -97,18 +139,24 @@ class TimeseriesAssistant:
 
 if __name__ == '__main__':
     # Load data
-    data, sensor_names = read_data("pump_sensor.csv", 1)
+    experiment = DataPreparation()
+    experiment.read_data('pump_sensor.csv')
+    # print(experiment.get_sensors_names())
+
+    # there is a column called 'Unnamed 0' including indexes and we need to drop it
+    experiment.data.drop(experiment.data.filter(regex="Unnamed"), axis=1, inplace=True)
+    # print(experiment.get_sensors_names())
 
     # preprocess data
-    data = manipulate_x(data, print_plot=False)
-    # remove timestamps column
-    sensor_names = data.keys()[2:-1]
-    # create a dataframe with sensors and target only!
-    data = data[sensor_names.insert(len(sensor_names), 'machine_status')]
+    experiment.manipulate_x(print_plot=False)
+
+    # drop timestamps
+    experiment.remove_timestamps()
 
     # create windowed data
     FUTURE = 1
-    time_series = TimeseriesAssistant(data, FUTURE).series_to_supervised()
+    time_series = TimeseriesAssistant(experiment.data, FUTURE).series_to_supervised()
+
     # these are the sensor names including the time shift, in our case the t-1 since future is 1
     sensor_names_shift = time_series.keys()[:-1]
 
@@ -154,7 +202,7 @@ if __name__ == '__main__':
         history = model.fit(training_data.data_x, [training_data.data_y, training_data.one_hot_y], epochs=EPOCH,
                             batch_size=32,
                             validation_data=(
-                            validation_data.data_x, [validation_data.data_y, validation_data.one_hot_y]),
+                                validation_data.data_x, [validation_data.data_y, validation_data.one_hot_y]),
                             shuffle=False)
 
         plot_training([history.history['class_out_loss'], history.history['val_class_out_loss']], what='loss',
@@ -171,3 +219,12 @@ if __name__ == '__main__':
     y_class = [np.argmax(yclass[i], axis=0) for i in range(len(yclass))]
 
     plot_signal_hat(y_class, testing_data.data_y, save=True, name='prediction_' + str(FUTURE))
+
+    # calculate how much time in advance the model predicts a problem with pump
+    # find the index of the first time that the pump broken
+    first_broken_tested = np.where(testing_data.data_y == 0)[0]
+    # find the index of the first time that the pump recovered (there is no broken signal)
+    first_recover_predicted = y_class.index(2)
+    difference_in_minutes = (first_broken_tested[0] - first_recover_predicted) / 60
+
+    print(f"The model predicted that the pump will brake {difference_in_minutes}min in advanced using the testing data")
