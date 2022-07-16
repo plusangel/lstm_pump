@@ -3,10 +3,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import OneHotEncoder
 
-from tensorflow.keras.layers import LSTM
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Dense
-
+from models import model_setup_Fapi, plot_training, plot_signal_hat
+from tensorflow.keras.models import load_model
 import numpy as np
 import pandas as pd
 
@@ -41,8 +39,7 @@ class DataAssistant:
     def onehot(self):
         one_hot = OneHotEncoder()
         one_hot.fit(self.data_y.reshape(-1, 1))
-        self.data_y = one_hot.transform(self.data_y.reshape(-1, 1)).toarray()
-        pass
+        self.one_hot_y = one_hot.transform(self.data_y.reshape(-1, 1)).toarray()
 
     def scaling(self):
         scaler = MinMaxScaler().fit(self.data_x)
@@ -50,8 +47,8 @@ class DataAssistant:
 
     def reshape_for_LSTM(self):
         timestemps = 1
-        samples = int(np.floor(self.data_x.shape[0]/timestemps))
-        self.data_x = self.data_x.reshape((samples, timestemps, self.data_x.shape[1]))  #samples, timesteps, sensors
+        samples = int(np.floor(self.data_x.shape[0] / timestemps))
+        self.data_x = self.data_x.reshape((samples, timestemps, self.data_x.shape[1]))  # samples, timesteps, sensors
 
 
 class TimeseriesAssistant:
@@ -143,7 +140,34 @@ if __name__ == '__main__':
     testing_data.scaling()
     testing_data.reshape_for_LSTM()
 
+    EPOCH = 10
+    BATCHSIZE = 32
 
+    input_shape_x = training_data.data_x.shape
+    print(input_shape_x)
 
+    TRAIN = False
 
+    # Train the model
+    if TRAIN:
+        model = model_setup_Fapi(input_shape_x)
+        history = model.fit(training_data.data_x, [training_data.data_y, training_data.one_hot_y], epochs=EPOCH,
+                            batch_size=32,
+                            validation_data=(
+                            validation_data.data_x, [validation_data.data_y, validation_data.one_hot_y]),
+                            shuffle=False)
 
+        plot_training([history.history['class_out_loss'], history.history['val_class_out_loss']], what='loss',
+                      save=True,
+                      name=('training_' + str(FUTURE)))
+        plot_training([history.history['class_out_acc'], history.history['val_class_out_acc']], what='acc', save=True,
+                      name=('training_' + str(FUTURE)))
+        model.save('pump_LSTM_' + str(FUTURE))
+    else:
+        model = load_model('./pump_LSTM_1')
+
+    # inference
+    [yhat, yclass] = model.predict(testing_data.data_x)
+    y_class = [np.argmax(yclass[i], axis=0) for i in range(len(yclass))]
+
+    plot_signal_hat(y_class, testing_data.data_y, save=True, name='prediction_' + str(FUTURE))

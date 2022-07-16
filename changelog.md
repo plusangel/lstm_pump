@@ -1,5 +1,8 @@
 ## Changelog for lstm_pump
 
+### v0.0.5 - 16/07/2022
+Training and inference completed
+
 ### v0.0.4 - 15/07/2022
 Preprocessing stage completed
 
